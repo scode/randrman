@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+
+import logging
+import re
+import subprocess
+import sys
+import time
+
+log = logging.getLogger('randrman')
+
+def xrandr(args=[]):
+    return subprocess.check_output(['xrandr'] + args)
+
+_connected_re = re.compile('^([^ ]+) connected ')
+_disconnected_re = re.compile('^([^ ]+) disconnected ')
+_resolution_re = re.compile('^ +([0-9]+x[0-9]+) .*')
+def xrandr_displays():
+    """
+    @return (connected_displays, disconnected_displays) where both
+            elements are dicts mapping display name to list of resolutions
+            supported in the order emitted by xrandr
+    """
+    connected = []
+    disconnected = []
+    last_display = None
+    is_connected = None
+    c_displays = {} # display name -> list of resolutions, connected displays
+    d_displays = {} # disconnected displays
+
+    for line in xrandr().split('\n'):
+        m = _connected_re.match(line)
+        if m:
+            connected.append(m.group(1))
+            is_connected = True
+            last_display = m.group(1)
+        else:
+            m = _disconnected_re.match(line)
+            if m:
+                disconnected.append(m.group(1))
+                is_connected = False
+                last_display = m.group(1)
+            else:
+                m = _resolution_re.match(line)
+                if m:
+                    if last_display:
+                        d = c_displays if is_connected else d_displays
+                        d.setdefault(last_display, []).append(m.group(1))
+                    else:
+                        log.error('found resolution with no known display; probably our bug')
+                else:
+                    log.debug('ignoring line: %s', line.strip())
+
+    for dkey in d_displays.keys():
+        if dkey in c_displays:
+            raise Exception('duplicate display name: %s', dkey)
+
+    return (c_displays, d_displays)
+
+def xrandr_configure_args(enabled_name, all_displays):
+    """
+    @return params to pass to xrandr to effect the configuration
+    """
+    args = []
+
+    for dname, resolutions in all_displays.iteritems():
+        args += ['--output', dname]
+        if dname == enabled_name:
+            args += ['--mode', resolutions[0]]
+        else:
+            args += ['--off']
+
+    return args
+
+def select_best(connected_displays, preferred_displays):
+    for d in preferred_displays:
+        if d in connected_displays:
+            return d
+
+    return None
+
+def print_help():
+    print 'Usage: <display1> [<display2> [...]]'
+    print ''
+    print 'Given a list of displays in their preferred order (you can discover'
+    print 'the available displays by running xrandr without options), continuously'
+    print 'monitor (by repeated invocation of xrandr) for changes in the set of'
+    print 'connected displays, and switch to the most preferred display whenever'
+    print 'it is connected. Example:'
+    print ''
+    print '  randrman HDMI1 eDP1'
+
+def main(argv):
+    if not argv[1:] or argv[1] == '--help':
+        print_help()
+        sys.exit(1)
+
+    preferred_displays = argv[1:]
+
+    log.info('preferring displays in this order: %s', preferred_displays)
+
+    # we do not try to interpret the output to determine the current display,
+    # if only for the reason that as a user one probably wants a decision
+    # to be made and acted upon immediately, rather than finding out later
+    # after e.g. connecting and disconnecting a display that the behavior
+    # is wrong. i.e., it valides our behavior w.r.t. the current state
+    # of connected devices.
+    current_display = None
+    while True:
+        connected, disconnected = xrandr_displays()
+        best = select_best(connected, preferred_displays)
+
+        if best is not None:
+            if best != current_display:
+                xr_args = xrandr_configure_args(best, dict(connected.items() + disconnected.items()))
+                log.info('switching to display %s; xrandr: %s', best, xr_args)
+                xrandr(xr_args)
+                current_display = best
+
+        time.sleep(3)
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)-15s randrman %(message)s')
+    main(sys.argv)
+
