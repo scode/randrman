@@ -56,7 +56,7 @@ def xrandr_displays():
 
     return (c_displays, d_displays)
 
-def xrandr_configure_args(enabled_name, all_displays):
+def xrandr_configure_args((enabled_name, enabled_res), all_displays):
     """
     @return params to pass to xrandr to effect the configuration
     """
@@ -65,7 +65,7 @@ def xrandr_configure_args(enabled_name, all_displays):
     for dname, resolutions in all_displays.iteritems():
         args += ['--output', dname]
         if dname == enabled_name:
-            args += ['--mode', resolutions[0]]
+            args += ['--mode', resolutions[0] if enabled_res is None else enabled_res]
         else:
             args += ['--off']
 
@@ -78,23 +78,38 @@ def select_best(connected_displays, preferred_displays):
 
     return None
 
+def split_display(displayres):
+    """x -> (x, None), x@y -> (x, y)."""
+    els = displayres.split('@')
+
+    if len(els) > 2:
+        raise Exception('>1 @ found: %s' % (displayres,))
+
+    return (els[0], els[1] if len(els) == 2 else None)
+assert split_display('x') == ('x', None)
+assert split_display('x@y') == ('x', 'y')
+
 def print_help():
-    print 'Usage: <display1> [<display2> [...]]'
+    print 'Usage: <display1[@res]> [<display2[@res]> [...]]'
     print ''
     print 'Given a list of displays in their preferred order (you can discover'
     print 'the available displays by running xrandr without options), continuously'
     print 'monitor (by repeated invocation of xrandr) for changes in the set of'
     print 'connected displays, and switch to the most preferred display whenever'
-    print 'it is connected. Example:'
+    print 'it is connected. Examples:'
     print ''
     print '  randrman HDMI1 eDP1'
+    print '  randrman HDMI1 eDP1@1920x1080'
+    print ''
+    print 'If no resolution is specified (using @WxH syntax), the highest possible'
+    print 'is used.'
 
 def main(argv):
     if not argv[1:] or argv[1] == '--help':
         print_help()
         sys.exit(1)
 
-    preferred_displays = argv[1:]
+    preferred_displays = dict(split_display(disp) for disp in argv[1:])
 
     log.info('preferring displays in this order: %s', preferred_displays)
 
@@ -107,11 +122,12 @@ def main(argv):
     current_display = None
     while True:
         connected, disconnected = xrandr_displays()
-        best = select_best(connected, preferred_displays)
+        best = select_best(connected, [name for name in preferred_displays.keys()])
 
         if best is not None:
             if best != current_display:
-                xr_args = xrandr_configure_args(best, dict(connected.items() + disconnected.items()))
+                xr_args = xrandr_configure_args((best, preferred_displays[best]),
+                                                dict(connected.items() + disconnected.items()))
                 log.info('switching to display %s; xrandr: %s', best, xr_args)
                 xrandr(xr_args)
                 current_display = best

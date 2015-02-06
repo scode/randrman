@@ -8,9 +8,12 @@ preferred display available (turning off all other displays).
 
 For example, on my laptop I prefer a single display at a time, and I
 always prefer the external HDMI port when a display is
-connected. Hence, I run:
+connected. Further, for the internal laptop display I pick a
+resolution other than the default (highest) because I'm too lazy to
+set things up to comfortably switch between a high-dpi and a low-dpi
+screen:
 
-  randrman HDMI1 eDP1
+  randrman HDMI1 eDP1@1920x1080
 
 It does exactly this, and nothing else. There is no configuration
 file, no dependencies other than a vaguely recent Python and xrandr in
@@ -29,4 +32,3 @@ Caveats:
 - It only ever picks non-interlaced resolutions.
 - It assumes the resolutions supported by a display cannot change while connected.
 - It assumes xrandr displays the highest resolution available first.
-- It assumes the user always wants the highest resolution possible.
