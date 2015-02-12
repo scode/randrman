@@ -20,8 +20,6 @@ def xrandr_displays():
             elements are dicts mapping display name to list of resolutions
             supported in the order emitted by xrandr
     """
-    connected = []
-    disconnected = []
     last_display = None
     is_connected = None
     c_displays = {} # display name -> list of resolutions, connected displays
@@ -30,13 +28,13 @@ def xrandr_displays():
     for line in xrandr().split('\n'):
         m = _connected_re.match(line)
         if m:
-            connected.append(m.group(1))
+            c_displays[m.group(1)] = []
             is_connected = True
             last_display = m.group(1)
         else:
             m = _disconnected_re.match(line)
             if m:
-                disconnected.append(m.group(1))
+                d_displays[m.group(1)] = []
                 is_connected = False
                 last_display = m.group(1)
             else:
@@ -44,7 +42,7 @@ def xrandr_displays():
                 if m:
                     if last_display:
                         d = c_displays if is_connected else d_displays
-                        d.setdefault(last_display, []).append(m.group(1))
+                        d[last_display].append(m.group(1))
                     else:
                         log.error('found resolution with no known display; probably our bug')
                 else:
