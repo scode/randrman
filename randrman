@@ -15,7 +15,7 @@ log = logging.getLogger('randrman')
 
 
 def xrandr(args: Optional[List]=None) -> str:
-    return subprocess.check_output(['xrandr'] + args if args is not None else []).decode('utf-8')
+    return subprocess.check_output(['xrandr'] + (args if args is not None else [])).decode('utf-8')
 
 
 _connected_re = re.compile('^([^ ]+) connected ')
