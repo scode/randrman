@@ -6,11 +6,16 @@ import subprocess
 import sys
 import time
 
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+
 log = logging.getLogger('randrman')
 
 
-def xrandr(args=[]):
-    return subprocess.check_output(['xrandr'] + args).decode('utf-8')
+def xrandr(args: Optional[List]=None) -> str:
+    return subprocess.check_output(['xrandr'] + args if args is not None else []).decode('utf-8')
 
 
 _connected_re = re.compile('^([^ ]+) connected ')
@@ -18,7 +23,7 @@ _disconnected_re = re.compile('^([^ ]+) disconnected ')
 _resolution_re = re.compile('^ +([0-9]+x[0-9]+) .*')
 
 
-def xrandr_displays():
+def xrandr_displays() -> Tuple[Dict[str,List[str]],Dict[str,List[str]]]:
     """
     @return (connected_displays, disconnected_displays) where both
             elements are dicts mapping display name to list of resolutions
@@ -26,44 +31,45 @@ def xrandr_displays():
     """
     last_display = None
     is_connected = None
-    c_displays = {}  # display name -> list of resolutions, connected displays
-    d_displays = {}  # disconnected displays
+
+    connected_displays = {}  # type: Dict[str,List[str]]
+    disconnected_displays = {}  # type: Dict[str,List[str]]
 
     for line in xrandr().split('\n'):
         m = _connected_re.match(line)
         if m:
-            c_displays[m.group(1)] = []
+            connected_displays[m.group(1)] = []
             is_connected = True
             last_display = m.group(1)
         else:
             m = _disconnected_re.match(line)
             if m:
-                d_displays[m.group(1)] = []
+                disconnected_displays[m.group(1)] = []
                 is_connected = False
                 last_display = m.group(1)
             else:
                 m = _resolution_re.match(line)
                 if m:
                     if last_display:
-                        d = c_displays if is_connected else d_displays
+                        d = connected_displays if is_connected else disconnected_displays
                         d[last_display].append(m.group(1))
                     else:
                         log.error('found resolution with no known display; probably our bug')
                 else:
                     log.debug('ignoring line: %s', line.strip())
 
-    for dkey in d_displays.keys():
-        if dkey in c_displays:
+    for dkey in disconnected_displays.keys():
+        if dkey in connected_displays:
             raise Exception('duplicate display name: %s', dkey)
 
-    return (c_displays, d_displays)
+    return (connected_displays, disconnected_displays)
 
 
-def xrandr_configure_args(enabled_name, enabled_res, all_displays):
+def xrandr_configure_args(enabled_name, enabled_res, all_displays) -> List[str]:
     """
     @return params to pass to xrandr to effect the configuration
     """
-    args = []
+    args = []  # type: List[str]
 
     for dname, resolutions in all_displays.items():
         args += ['--output', dname]
@@ -75,7 +81,7 @@ def xrandr_configure_args(enabled_name, enabled_res, all_displays):
     return args
 
 
-def select_best(connected_displays, preferred_displays):
+def select_best(connected_displays, preferred_displays) -> Optional[str]:
     for d in preferred_displays:
         if d in connected_displays:
             return d
@@ -83,7 +89,7 @@ def select_best(connected_displays, preferred_displays):
     return None
 
 
-def split_display(displayres):
+def split_display(displayres) -> Tuple[str,Optional[str]]:
     """x -> (x, None), x@y -> (x, y)."""
     els = displayres.split('@')
 
@@ -97,7 +103,7 @@ assert split_display('x') == ('x', None)
 assert split_display('x@y') == ('x', 'y')
 
 
-def print_help():
+def print_help() -> None:
     print('Usage: <display1[@res]> [<display2[@res]> [...]]')
     print('')
     print('Given a list of displays in their preferred order (you can discover')
@@ -113,7 +119,7 @@ def print_help():
     print('is used.')
 
 
-def main(argv):
+def main(argv) -> None:
     if not argv[1:] or argv[1] == '--help':
         print_help()
         sys.exit(1)
