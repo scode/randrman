@@ -17,9 +17,7 @@ log = logging.getLogger("randrman")
 def xrandr(args: Optional[List] = None) -> str:
     return subprocess.check_output(
         ["xrandr"] + (args if args is not None else [])
-    ).decode(
-        "utf-8"
-    )
+    ).decode("utf-8")
 
 
 _connected_re = re.compile("^([^ ]+) connected ")
@@ -55,7 +53,11 @@ def xrandr_displays() -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
                 m = _resolution_re.match(line)
                 if m:
                     if last_display:
-                        d = connected_displays if is_connected else disconnected_displays
+                        d = (
+                            connected_displays
+                            if is_connected
+                            else disconnected_displays
+                        )
                         d[last_display].append(m.group(1))
                     else:
                         log.error(
