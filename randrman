@@ -9,7 +9,7 @@ import time
 log = logging.getLogger('randrman')
 
 def xrandr(args=[]):
-    return subprocess.check_output(['xrandr'] + args)
+    return subprocess.check_output(['xrandr'] + args).decode('utf-8')
 
 _connected_re = re.compile('^([^ ]+) connected ')
 _disconnected_re = re.compile('^([^ ]+) disconnected ')
@@ -54,13 +54,13 @@ def xrandr_displays():
 
     return (c_displays, d_displays)
 
-def xrandr_configure_args((enabled_name, enabled_res), all_displays):
+def xrandr_configure_args(enabled_name, enabled_res, all_displays):
     """
     @return params to pass to xrandr to effect the configuration
     """
     args = []
 
-    for dname, resolutions in all_displays.iteritems():
+    for dname, resolutions in all_displays.items():
         args += ['--output', dname]
         if dname == enabled_name:
             args += ['--mode', resolutions[0] if enabled_res is None else enabled_res]
@@ -88,19 +88,19 @@ assert split_display('x') == ('x', None)
 assert split_display('x@y') == ('x', 'y')
 
 def print_help():
-    print 'Usage: <display1[@res]> [<display2[@res]> [...]]'
-    print ''
-    print 'Given a list of displays in their preferred order (you can discover'
-    print 'the available displays by running xrandr without options), continuously'
-    print 'monitor (by repeated invocation of xrandr) for changes in the set of'
-    print 'connected displays, and switch to the most preferred display whenever'
-    print 'it is connected. Examples:'
-    print ''
-    print '  randrman HDMI1 eDP1'
-    print '  randrman HDMI1 eDP1@1920x1080'
-    print ''
-    print 'If no resolution is specified (using @WxH syntax), the highest possible'
-    print 'is used.'
+    print('Usage: <display1[@res]> [<display2[@res]> [...]]')
+    print('')
+    print('Given a list of displays in their preferred order (you can discover')
+    print('the available displays by running xrandr without options), continuously')
+    print('monitor (by repeated invocation of xrandr) for changes in the set of')
+    print('connected displays, and switch to the most preferred display whenever')
+    print('it is connected. Examples:')
+    print('')
+    print('  randrman HDMI1 eDP1')
+    print('  randrman HDMI1 eDP1@1920x1080')
+    print('')
+    print('If no resolution is specified (using @WxH syntax), the highest possible')
+    print('is used.')
 
 def main(argv):
     if not argv[1:] or argv[1] == '--help':
@@ -124,8 +124,8 @@ def main(argv):
 
         if best is not None:
             if best != current_display:
-                xr_args = xrandr_configure_args((best, preferred_displays[best]),
-                                                dict(connected.items() + disconnected.items()))
+                xr_args = xrandr_configure_args(best, preferred_displays[best],
+                                                dict([e for e in connected.items()] + [e for e in disconnected.items()]))
                 log.info('switching to display %s; xrandr: %s', best, xr_args)
                 xrandr(xr_args)
                 current_display = best
