@@ -11,19 +11,23 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
-log = logging.getLogger('randrman')
+log = logging.getLogger("randrman")
 
 
-def xrandr(args: Optional[List]=None) -> str:
-    return subprocess.check_output(['xrandr'] + (args if args is not None else [])).decode('utf-8')
+def xrandr(args: Optional[List] = None) -> str:
+    return subprocess.check_output(
+        ["xrandr"] + (args if args is not None else [])
+    ).decode(
+        "utf-8"
+    )
 
 
-_connected_re = re.compile('^([^ ]+) connected ')
-_disconnected_re = re.compile('^([^ ]+) disconnected ')
-_resolution_re = re.compile('^ +([0-9]+x[0-9]+) .*')
+_connected_re = re.compile("^([^ ]+) connected ")
+_disconnected_re = re.compile("^([^ ]+) disconnected ")
+_resolution_re = re.compile("^ +([0-9]+x[0-9]+) .*")
 
 
-def xrandr_displays() -> Tuple[Dict[str,List[str]],Dict[str,List[str]]]:
+def xrandr_displays() -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
     """
     @return (connected_displays, disconnected_displays) where both
             elements are dicts mapping display name to list of resolutions
@@ -35,7 +39,7 @@ def xrandr_displays() -> Tuple[Dict[str,List[str]],Dict[str,List[str]]]:
     connected_displays = {}  # type: Dict[str,List[str]]
     disconnected_displays = {}  # type: Dict[str,List[str]]
 
-    for line in xrandr().split('\n'):
+    for line in xrandr().split("\n"):
         m = _connected_re.match(line)
         if m:
             connected_displays[m.group(1)] = []
@@ -54,13 +58,15 @@ def xrandr_displays() -> Tuple[Dict[str,List[str]],Dict[str,List[str]]]:
                         d = connected_displays if is_connected else disconnected_displays
                         d[last_display].append(m.group(1))
                     else:
-                        log.error('found resolution with no known display; probably our bug')
+                        log.error(
+                            "found resolution with no known display; probably our bug"
+                        )
                 else:
-                    log.debug('ignoring line: %s', line.strip())
+                    log.debug("ignoring line: %s", line.strip())
 
     for dkey in disconnected_displays.keys():
         if dkey in connected_displays:
-            raise Exception('duplicate display name: %s', dkey)
+            raise Exception("duplicate display name: %s", dkey)
 
     return (connected_displays, disconnected_displays)
 
@@ -72,11 +78,11 @@ def xrandr_configure_args(enabled_name, enabled_res, all_displays) -> List[str]:
     args = []  # type: List[str]
 
     for dname, resolutions in all_displays.items():
-        args += ['--output', dname]
+        args += ["--output", dname]
         if dname == enabled_name:
-            args += ['--mode', resolutions[0] if enabled_res is None else enabled_res]
+            args += ["--mode", resolutions[0] if enabled_res is None else enabled_res]
         else:
-            args += ['--off']
+            args += ["--off"]
 
     return args
 
@@ -89,44 +95,44 @@ def select_best(connected_displays, preferred_displays) -> Optional[str]:
     return None
 
 
-def split_display(displayres) -> Tuple[str,Optional[str]]:
+def split_display(displayres) -> Tuple[str, Optional[str]]:
     """x -> (x, None), x@y -> (x, y)."""
-    els = displayres.split('@')
+    els = displayres.split("@")
 
     if len(els) > 2:
-        raise Exception('>1 @ found: %s' % (displayres,))
+        raise Exception(">1 @ found: %s" % (displayres,))
 
     return (els[0], els[1] if len(els) == 2 else None)
 
 
-assert split_display('x') == ('x', None)
-assert split_display('x@y') == ('x', 'y')
+assert split_display("x") == ("x", None)
+assert split_display("x@y") == ("x", "y")
 
 
 def print_help() -> None:
-    print('Usage: <display1[@res]> [<display2[@res]> [...]]')
-    print('')
-    print('Given a list of displays in their preferred order (you can discover')
-    print('the available displays by running xrandr without options), continuously')
-    print('monitor (by repeated invocation of xrandr) for changes in the set of')
-    print('connected displays, and switch to the most preferred display whenever')
-    print('it is connected. Examples:')
-    print('')
-    print('  randrman HDMI1 eDP1')
-    print('  randrman HDMI1 eDP1@1920x1080')
-    print('')
-    print('If no resolution is specified (using @WxH syntax), the highest possible')
-    print('is used.')
+    print("Usage: <display1[@res]> [<display2[@res]> [...]]")
+    print("")
+    print("Given a list of displays in their preferred order (you can discover")
+    print("the available displays by running xrandr without options), continuously")
+    print("monitor (by repeated invocation of xrandr) for changes in the set of")
+    print("connected displays, and switch to the most preferred display whenever")
+    print("it is connected. Examples:")
+    print("")
+    print("  randrman HDMI1 eDP1")
+    print("  randrman HDMI1 eDP1@1920x1080")
+    print("")
+    print("If no resolution is specified (using @WxH syntax), the highest possible")
+    print("is used.")
 
 
 def main(argv) -> None:
-    if not argv[1:] or argv[1] == '--help':
+    if not argv[1:] or argv[1] == "--help":
         print_help()
         sys.exit(1)
 
     preferred_displays = dict(split_display(disp) for disp in argv[1:])
 
-    log.info('preferring displays in this order: %s', preferred_displays)
+    log.info("preferring displays in this order: %s", preferred_displays)
 
     # we do not try to interpret the output to determine the current display,
     # if only for the reason that as a user one probably wants a decision
@@ -141,16 +147,23 @@ def main(argv) -> None:
 
         if best is not None:
             if best != current_display:
-                xr_args = xrandr_configure_args(best, preferred_displays[best],
-                                                dict([e for e in connected.items()] + [e for e in disconnected.items()]))
-                log.info('switching to display %s; xrandr: %s', best, xr_args)
+                xr_args = xrandr_configure_args(
+                    best,
+                    preferred_displays[best],
+                    dict(
+                        [e for e in connected.items()]
+                        + [e for e in disconnected.items()]
+                    ),
+                )
+                log.info("switching to display %s; xrandr: %s", best, xr_args)
                 xrandr(xr_args)
                 current_display = best
 
         time.sleep(3)
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)-15s randrman %(message)s')
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)-15s randrman %(message)s"
+    )
     main(sys.argv)
