@@ -8,12 +8,16 @@ import time
 
 log = logging.getLogger('randrman')
 
+
 def xrandr(args=[]):
     return subprocess.check_output(['xrandr'] + args).decode('utf-8')
+
 
 _connected_re = re.compile('^([^ ]+) connected ')
 _disconnected_re = re.compile('^([^ ]+) disconnected ')
 _resolution_re = re.compile('^ +([0-9]+x[0-9]+) .*')
+
+
 def xrandr_displays():
     """
     @return (connected_displays, disconnected_displays) where both
@@ -22,8 +26,8 @@ def xrandr_displays():
     """
     last_display = None
     is_connected = None
-    c_displays = {} # display name -> list of resolutions, connected displays
-    d_displays = {} # disconnected displays
+    c_displays = {}  # display name -> list of resolutions, connected displays
+    d_displays = {}  # disconnected displays
 
     for line in xrandr().split('\n'):
         m = _connected_re.match(line)
@@ -54,6 +58,7 @@ def xrandr_displays():
 
     return (c_displays, d_displays)
 
+
 def xrandr_configure_args(enabled_name, enabled_res, all_displays):
     """
     @return params to pass to xrandr to effect the configuration
@@ -69,12 +74,14 @@ def xrandr_configure_args(enabled_name, enabled_res, all_displays):
 
     return args
 
+
 def select_best(connected_displays, preferred_displays):
     for d in preferred_displays:
         if d in connected_displays:
             return d
 
     return None
+
 
 def split_display(displayres):
     """x -> (x, None), x@y -> (x, y)."""
@@ -84,8 +91,11 @@ def split_display(displayres):
         raise Exception('>1 @ found: %s' % (displayres,))
 
     return (els[0], els[1] if len(els) == 2 else None)
+
+
 assert split_display('x') == ('x', None)
 assert split_display('x@y') == ('x', 'y')
+
 
 def print_help():
     print('Usage: <display1[@res]> [<display2[@res]> [...]]')
@@ -101,6 +111,7 @@ def print_help():
     print('')
     print('If no resolution is specified (using @WxH syntax), the highest possible')
     print('is used.')
+
 
 def main(argv):
     if not argv[1:] or argv[1] == '--help':
@@ -132,8 +143,8 @@ def main(argv):
 
         time.sleep(3)
 
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)-15s randrman %(message)s')
     main(sys.argv)
-
