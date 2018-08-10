@@ -131,6 +131,10 @@ def main(argv) -> None:
     if not argv[1:] or argv[1] == "--help":
         print_help()
         sys.exit(1)
+    if argv[1] == "--once":
+        run_once = True
+    else:
+        run_once = False
 
     preferred_displays = dict(split_display(disp) for disp in argv[1:])
 
@@ -161,6 +165,8 @@ def main(argv) -> None:
                 xrandr(xr_args)
                 current_display = best
 
+        if run_once:
+            break
         time.sleep(3)
 
 
